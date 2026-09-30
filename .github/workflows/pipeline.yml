@@ -4,19 +4,40 @@ on:
     branches: [main]
 
 jobs:
-  build_push:
+  test:
+    name: Testar Imagem Docker
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
+      - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: docker login
+      - name: Build da imagem para teste
+        run: docker build -t test-pamonha .
+
+      - name: Subir container de teste
+        run: docker run -d -p 8080:80 --name test-container test-pamonha
+
+      - name: Validar se o site está online e respondendo (HTTP 200 + HTML)
+        run: |
+          sleep 3
+          curl -f http://localhost:8080 | grep -i "pamonha"
+          echo "Teste passou com sucesso! O site respondeu corretamente."
+
+  build_push:
+    name: Build e Push no Docker Hub
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Docker Login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: docker build e push
+      - name: Docker Build e Push
         uses: docker/build-push-action@v5
         with:
           context: .
